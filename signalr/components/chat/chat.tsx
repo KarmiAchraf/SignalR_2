@@ -36,9 +36,20 @@ export default function ChatComponent({ hubConnection, onConnected }: ChatCompon
     });
 
     // TODO: Écouter le message pour mettre à jour la liste de channels
-
+    hubConnection.on('ChannelsList', (channels: Channel[]) => {
+      setChannelsList(channels);
+    })
     // TODO: Écouter le message pour quitter un channel (lorsque le channel est effacé)
-
+    hubConnection.on('ChannelsList', (channels: Channel[]) => {
+      setChannelsList(channels);
+      setSelectedChannel(prevSelected => {
+        if (prevSelected && !channels.some(c => c.id === prevSelected.id)) {
+          setMessages([]);
+          return null;
+        }
+        return prevSelected;
+      });
+    })
     // Tous les handlers sont enregistrés : on peut maintenant démarrer la connexion.
     if (hubConnection.state === HubConnectionState.Disconnected) {
       hubConnection
@@ -84,11 +95,17 @@ export default function ChatComponent({ hubConnection, onConnected }: ChatCompon
   function createChannel(e: React.FormEvent) {
     e.preventDefault();
     // TODO: Ajouter un invoke pour créer un canal
+    if (!hubConnection || !newChannelName.trim()) return;
+
+    // Appel de la méthode CreateChannel sur le Hub SignalR côté serveur
+    hubConnection.invoke('CreateChannel', newChannelName);
     setNewChannelName('');
   }
 
   function deleteChannel(channel: Channel) {
     // TODO: Ajouter un invoke pour supprimer un canal
+    if (!hubConnection || !channel) return;
+    hubConnection.invoke('DeleteChannel', channel.id);
   }
 
   function leaveChannel() {
@@ -109,9 +126,8 @@ export default function ChatComponent({ hubConnection, onConnected }: ChatCompon
             {usersList.map((user) => (
               <li key={user.key}>
                 <button
-                  className={`${styles.userButton} ${
-                    selectedUser?.key === user.key ? styles.selected : ''
-                  }`}
+                  className={`${styles.userButton} ${selectedUser?.key === user.key ? styles.selected : ''
+                    }`}
                   onClick={() => userClick(user)}
                 >
                   {user.key}
@@ -148,9 +164,8 @@ export default function ChatComponent({ hubConnection, onConnected }: ChatCompon
             {channelsList.map((channel) => (
               <li key={channel.id} className={styles.channelItem}>
                 <button
-                  className={`${styles.channelButton} ${
-                    selectedChannel?.id === channel.id ? styles.selected : ''
-                  }`}
+                  className={`${styles.channelButton} ${selectedChannel?.id === channel.id ? styles.selected : ''
+                    }`}
                   onClick={() => joinChannel(channel)}
                 >
                   {channel.title}
